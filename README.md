@@ -1,17 +1,17 @@
-# [Titlul proiectului]
+# Procesor CSV
 
 Proiect individual la disciplina Metode avansate de programare, anul universitar 2026-2027.
 
 ## Autor
 
-- **Nume:** [Nume Prenume]
-- **Grupa:** [grupa]
+- **Nume:** Beuka Ileana
+- **Grupa:** 1.1
 - **Marca:** [marca]
-- **Tema:** [numarul temei] - [titlul temei]
+- **Tema:** Tema 8 – Procesor CSV
 
 ## Descriere
 
-[Doua-trei propozitii despre ce face aplicatia si ce problema rezolva.]
+Aplicatia este un serviciu web care primeste tabele in format CSV, le pastreaza in memorie si permite interogarea lor. Serviciul deduce automat daca o coloana contine numere sau text, oferind functii de filtrare, sortare si calculare de statistici.
 
 ## Tehnologii
 
@@ -46,7 +46,11 @@ python -m pytest --cov=src
 | `/version` | GET | Versiunea si commit-ul din care a fost construita imaginea |
 | `/` | GET | Pagina de prezentare |
 | `/reset` | POST | Goleste datele din memorie |
-| [ruta temei] | [metoda] | [descriere] |
+| `/datasets` | POST | Incarca un set de date. Corp: `{"name", "content"}`, unde content este CSV cu antet pe primul rand |
+| `/datasets/{id}/columns` | GET | Intoarce `[{"name","type"}]`, unde type este numeric sau text |
+| `/datasets/{id}/rows` | GET | Parametri optionali: filter (forma column:value), sort (nume de coloana), dir (asc/desc, implicit asc) |
+| `/datasets/{id}/aggregate` | GET | Parametri obligatorii column si op, unde op este sum, avg, min, max sau count. Intoarce `{"column", "op", "value"}` |
+| `/datasets/{id}` | DELETE | Sterge setul de date |
 
 ## Decizii de implementare
 
