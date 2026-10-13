@@ -8,9 +8,9 @@ RUN python -m venv /opt/venv \
 
 # Etapa 2 - executie. Primeste doar mediul virtual si codul sursa.
 FROM python:3.13-slim
-LABEL org.opencontainers.image.title="MAP proiect" \
-      org.opencontainers.image.authors="Nume Prenume <email@student.upt.ro>" \
-      org.opencontainers.image.source="https://github.com/utilizator/repo"
+LABEL org.opencontainers.image.title="csv-processor" \
+      org.opencontainers.image.authors="Beuka Ileana <ileana.beuka@student.upt.ro>" \
+      org.opencontainers.image.source="https://github.com/ileanabeuka/csv-processor"
 
 ARG COMMIT=dev
 ARG BUILT_AT=unknown
