@@ -6,7 +6,6 @@ Proiect individual la disciplina Metode avansate de programare, anul universitar
 
 - **Nume:** Beuka Ileana
 - **Grupa:** 1.1
-- **Marca:** [marca]
 - **Tema:** Tema 8 – Procesor CSV
 
 ## Descriere
