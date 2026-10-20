@@ -6,6 +6,7 @@ venv/
 .pytest_cache/
 .coverage
 coverage/
+.vscode
 
 # Secrete. Nu comiteti niciodata credentiale.
 .env
