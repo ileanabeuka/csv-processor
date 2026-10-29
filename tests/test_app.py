@@ -123,6 +123,61 @@ def test_create_dataset_rejects_malformed_row_before_row_limit(client):
     assert store.datasets == {}
 
 
+def test_list_columns_classifies_numeric_and_text_columns(client):
+    created = client.post(
+        "/datasets",
+        json={
+            "name": "people",
+            "content": "name,age\nAna,20\nIon,21\nMara,",
+        },
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/columns")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {"name": "name", "type": "text"},
+        {"name": "age", "type": "text"},
+    ]
+
+
+def test_list_columns_classifies_clean_numeric_column(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "numbers", "content": "age\n20\n21"},
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/columns")
+
+    assert response.status_code == 200
+    assert response.get_json() == [{"name": "age", "type": "numeric"}]
+
+
+def test_list_columns_classifies_empty_dataset_column_as_text(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "empty", "content": "name,age"},
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/columns")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {"name": "name", "type": "text"},
+        {"name": "age", "type": "text"},
+    ]
+
+
+def test_list_columns_returns_not_found_for_unknown_dataset(client):
+    response = client.get("/datasets/42/columns")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "error": "not_found",
+        "message": "dataset does not exist",
+    }
+
+
 def test_home_returns_html(client):
     response = client.get("/")
     assert response.status_code == 200

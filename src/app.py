@@ -1,3 +1,4 @@
+import math
 import os
 import time
 
@@ -28,6 +29,28 @@ class Store:
 
 
 store = Store()
+
+
+def numeric_value(value):
+    try:
+        number = float(value)
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def column_type(dataset, column):
+    values = [row[column] for row in dataset["rows"]]
+    if values and all(numeric_value(value) is not None for value in values):
+        return "numeric"
+    return "text"
+
+
+def get_dataset(dataset_id):
+    dataset = store.datasets.get(dataset_id)
+    if dataset is None:
+        return None, (jsonify(error="not_found", message="dataset does not exist"), 404)
+    return dataset, None
 
 
 @app.get("/health")
@@ -102,6 +125,20 @@ def create_dataset():
         "rows": rows,
     }
     return jsonify(id=dataset_id, name=name.strip()), 201
+
+
+@app.get("/datasets/<int:dataset_id>/columns")
+def list_columns(dataset_id):
+    dataset, error = get_dataset(dataset_id)
+    if error:
+        return error
+
+    return jsonify(
+        [
+            {"name": column, "type": column_type(dataset, column)}
+            for column in dataset["columns"]
+        ]
+    )
 
 
 @app.get("/")
