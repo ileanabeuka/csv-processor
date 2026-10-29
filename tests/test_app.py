@@ -6,6 +6,7 @@ from src.app import APP_NAME, app, store
 @pytest.fixture
 def client():
     app.config["TESTING"] = True
+    store.reset()
     with app.test_client() as test_client:
         yield test_client
 
@@ -39,6 +40,87 @@ def test_reset_clears_store(client):
     store.next_id = 42
     client.post("/reset")
     assert store.next_id == 1
+
+
+def test_create_dataset_stores_csv(client):
+    response = client.post(
+        "/datasets",
+        json={"name": "people", "content": "name,age\nAna,20\nIon,21"},
+    )
+
+    assert response.status_code == 201
+    assert response.get_json() == {"id": 1, "name": "people"}
+    assert store.datasets[1] == {
+        "id": 1,
+        "name": "people",
+        "columns": ["name", "age"],
+        "rows": [
+            {"name": "Ana", "age": "20"},
+            {"name": "Ion", "age": "21"},
+        ],
+    }
+
+
+def test_create_dataset_accepts_header_with_trailing_newline(client):
+    response = client.post(
+        "/datasets",
+        json={"name": "empty", "content": "produs,cantitate,pret\n"},
+    )
+
+    assert response.status_code == 201
+    assert response.get_json() == {"id": 1, "name": "empty"}
+    assert store.datasets[1]["rows"] == []
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("name,age\nAna", "row 2 has 1 fields; expected 2"),
+        ("name,age\nAna,20,extra", "row 2 has 3 fields; expected 2"),
+    ],
+)
+def test_create_dataset_rejects_rows_with_wrong_field_count(client, content, message):
+    response = client.post("/datasets", json={"name": "people", "content": content})
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation", "message": message}
+    assert store.next_id == 1
+    assert store.datasets == {}
+
+
+def test_create_dataset_accepts_750_total_rows_including_header(client):
+    content = "value\n" + "\n".join(str(value) for value in range(749))
+
+    response = client.post("/datasets", json={"name": "maximum", "content": content})
+
+    assert response.status_code == 201
+    assert len(store.datasets[1]["rows"]) == 749
+
+
+def test_create_dataset_rejects_more_than_750_total_rows(client):
+    content = "value\n" + "\n".join(str(value) for value in range(750))
+
+    response = client.post("/datasets", json={"name": "too large", "content": content})
+
+    assert response.status_code == 409
+    assert response.get_json()["error"] == "conflict"
+    assert store.next_id == 1
+    assert store.datasets == {}
+
+
+def test_create_dataset_rejects_malformed_row_before_row_limit(client):
+    content = "first,second\n" + "\n".join(f"{value},ok" for value in range(749))
+    content += "\nmalformed"
+
+    response = client.post("/datasets", json={"name": "invalid", "content": content})
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation",
+        "message": "row 751 has 1 fields; expected 2",
+    }
+    assert store.next_id == 1
+    assert store.datasets == {}
 
 
 def test_home_returns_html(client):
