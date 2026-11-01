@@ -53,6 +53,34 @@ def get_dataset(dataset_id):
     return dataset, None
 
 
+def filter_rows(dataset, rows, filter_expression):
+    if filter_expression is None:
+        return rows, None
+    if ":" not in filter_expression:
+        return None, (jsonify(error="validation", message="filter must use the column:value format"), 400)
+
+    filter_column, filter_value = filter_expression.split(":", 1)
+    if filter_column not in dataset["columns"]:
+        return None, (jsonify(error="validation", message="filter column does not exist"), 400)
+
+    return [row for row in rows if row[filter_column] == filter_value], None
+
+
+def sort_rows(dataset, rows, sort_column, direction):
+    if direction not in {"asc", "desc"}:
+        return None, (jsonify(error="validation", message="dir must be asc or desc"), 400)
+    if sort_column is None:
+        return rows, None
+    if sort_column not in dataset["columns"]:
+        return None, (jsonify(error="validation", message="sort column does not exist"), 400)
+
+    if column_type(dataset, sort_column) == "numeric":
+        sort_key = lambda row: float(row[sort_column])
+    else:
+        sort_key = lambda row: row[sort_column].casefold()
+    return sorted(rows, key=sort_key, reverse=direction == "desc"), None
+
+
 @app.get("/health")
 def health():
     return jsonify(
@@ -139,6 +167,28 @@ def list_columns(dataset_id):
             for column in dataset["columns"]
         ]
     )
+
+
+@app.get("/datasets/<int:dataset_id>/rows")
+def list_rows(dataset_id):
+    dataset, error = get_dataset(dataset_id)
+    if error:
+        return error
+
+    rows, error = filter_rows(dataset, dataset["rows"], request.args.get("filter"))
+    if error:
+        return error
+
+    rows, error = sort_rows(
+        dataset,
+        rows,
+        request.args.get("sort"),
+        request.args.get("dir", "asc"),
+    )
+    if error:
+        return error
+
+    return jsonify(rows=rows)
 
 
 @app.get("/")

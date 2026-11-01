@@ -178,6 +178,135 @@ def test_list_columns_returns_not_found_for_unknown_dataset(client):
     }
 
 
+def test_list_rows_returns_all_rows_in_original_order(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "people", "content": "name,age\nAna,20\nIon,3"},
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/rows")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "rows": [
+            {"name": "Ana", "age": "20"},
+            {"name": "Ion", "age": "3"},
+        ]
+    }
+
+
+@pytest.mark.parametrize(
+    ("direction", "expected_ages"),
+    [
+        ("asc", ["3", "11", "20"]),
+        ("desc", ["20", "11", "3"]),
+    ],
+)
+def test_list_rows_sorts_numeric_column(client, direction, expected_ages):
+    created = client.post(
+        "/datasets",
+        json={"name": "people", "content": "name,age\nAna,20\nIon,3\nMara,11"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/rows?sort=age&dir={direction}"
+    )
+
+    assert response.status_code == 200
+    assert [row["age"] for row in response.get_json()["rows"]] == expected_ages
+
+
+def test_list_rows_filters_and_sorts_rows(client):
+    created = client.post(
+        "/datasets",
+        json={
+            "name": "people",
+            "content": "city,name,age\nIasi,Ion,3\nBucuresti,Mara,20\nBucuresti,Ana,11",
+        },
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/rows?filter=city:Bucuresti&sort=age"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["rows"] == [
+        {"city": "Bucuresti", "name": "Ana", "age": "11"},
+        {"city": "Bucuresti", "name": "Mara", "age": "20"},
+    ]
+
+
+def test_list_rows_sorts_text_without_case_sensitivity(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "names", "content": "name\nmara\nAna\nion"},
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/rows?sort=name")
+
+    assert response.status_code == 200
+    assert [row["name"] for row in response.get_json()["rows"]] == ["Ana", "ion", "mara"]
+
+
+def test_list_rows_sorts_decimal_values_numerically(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "decimal numbers", "content": "value\n10.25\n-2\n1.5"},
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/rows?sort=value")
+
+    assert response.status_code == 200
+    assert [row["value"] for row in response.get_json()["rows"]] == [
+        "-2",
+        "1.5",
+        "10.25",
+    ]
+
+
+def test_list_rows_sorts_text_column_alphabetically_if_one_value_is_not_numeric(client):
+    created = client.post(
+        "/datasets",
+        json={
+            "name": "quantities",
+            "content": "cantitate\n10\n9\nn/a",
+        },
+    )
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/rows?sort=cantitate")
+
+    assert response.status_code == 200
+    assert [row["cantitate"] for row in response.get_json()["rows"]] == ["10", "9", "n/a"]
+
+
+@pytest.mark.parametrize(
+    ("query", "message"),
+    [
+        ("filter=invalid", "filter must use the column:value format"),
+        ("filter=missing:value", "filter column does not exist"),
+        ("sort=missing", "sort column does not exist"),
+        ("dir=sideways", "dir must be asc or desc"),
+    ],
+)
+def test_list_rows_rejects_invalid_query_parameters(client, query, message):
+    created = client.post("/datasets", json={"name": "data", "content": "value\none"})
+
+    response = client.get(f"/datasets/{created.get_json()['id']}/rows?{query}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation", "message": message}
+
+
+def test_list_rows_returns_not_found_for_unknown_dataset(client):
+    response = client.get("/datasets/42/rows")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "error": "not_found",
+        "message": "dataset does not exist",
+    }
+
+
 def test_home_returns_html(client):
     response = client.get("/")
     assert response.status_code == 200
