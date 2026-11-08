@@ -34,7 +34,7 @@ curl http://localhost:8080/version
 
 ```
 pip install -r requirements.txt pytest pytest-cov
-python -m pytest --cov=src
+python -m pytest --cov=src --cov-fail-under=50 --cov-report=term-missing
 ```
 
 ## Rutele implementate

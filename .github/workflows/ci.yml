@@ -14,8 +14,9 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -r requirements.txt pytest pytest-cov
-      - run: mkdir -p coverage && python -m pytest --cov=src --cov-report=xml:coverage/coverage.xml
+      - run: mkdir -p coverage && python -m pytest --cov=src --cov-fail-under=50 --cov-report=term-missing --cov-report=xml:coverage/coverage.xml
       - name: Upload coverage report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage
