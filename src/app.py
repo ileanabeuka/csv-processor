@@ -291,8 +291,8 @@ def home():
 <html lang="ro"><head><meta charset="utf-8"><title>{APP_NAME}</title></head>
 <body>
 <h1>{APP_NAME}</h1>
-<p>Autor: NUME PRENUME, grupa GRUPA</p>
-<p>Tema: NUMARUL TEMEI</p>
+<p>Autor: BEUKA ILEANA, grupa 1.1</p>
+<p>Tema: 8</p>
 <p>Versiune: {APP_VERSION}, commit {commit}</p>
 </body></html>"""
 
