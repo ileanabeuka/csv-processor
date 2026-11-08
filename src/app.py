@@ -1,12 +1,15 @@
 import math
 import os
 import time
+from decimal import Decimal, ROUND_HALF_UP, localcontext
 
 from flask import Flask, jsonify, request
 
 APP_NAME = "map-project"
 APP_VERSION = "0.1.0"
 MAX_DATASET_ROWS = 750
+AGGREGATE_OPERATIONS = {"sum", "avg", "min", "max", "count"}
+NUMERIC_AGGREGATE_OPERATIONS = {"sum", "avg"}
 
 STARTED_AT = time.monotonic()
 
@@ -79,6 +82,64 @@ def sort_rows(dataset, rows, sort_column, direction):
     else:
         sort_key = lambda row: row[sort_column].casefold()
     return sorted(rows, key=sort_key, reverse=direction == "desc"), None
+
+
+def nonempty_column_values(dataset, column):
+    return [row[column] for row in dataset["rows"] if row[column].strip()]
+
+
+def aggregate_numeric_values(values, operation):
+    numbers = [Decimal(value) for value in values]
+    max_adjusted = max(number.adjusted() for number in numbers)
+    min_exponent = min(number.as_tuple().exponent for number in numbers)
+
+    with localcontext() as context:
+        context.prec = max(
+            context.prec,
+            max_adjusted - min_exponent + len(str(len(numbers))) + 2,
+            max_adjusted + 3,
+        )
+        if operation == "sum":
+            result = sum(numbers)
+        elif operation == "avg":
+            result = sum(numbers) / len(numbers)
+        elif operation == "min":
+            result = min(numbers)
+        else:
+            result = max(numbers)
+
+        result = result.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    return float(result)
+
+
+def aggregate_text_values(values, operation):
+    if operation == "min":
+        return min(values, key=str.casefold)
+    return max(values, key=str.casefold)
+
+
+def calculate_aggregate(dataset, column, operation):
+    values = nonempty_column_values(dataset, column)
+    if operation == "count":
+        return len(values), None
+    if not values:
+        return None, "cannot aggregate an empty column"
+
+    is_numeric = column_type(dataset, column) == "numeric"
+    if operation in NUMERIC_AGGREGATE_OPERATIONS and not is_numeric:
+        return None, "numeric operations require a numeric column"
+
+    if is_numeric:
+        try:
+            result = aggregate_numeric_values(values, operation)
+        except OverflowError:
+            return None, "aggregate result is outside the supported numeric range"
+        if not math.isfinite(result):
+            return None, "aggregate result is outside the supported numeric range"
+        return result, None
+
+    return aggregate_text_values(values, operation), None
 
 
 @app.get("/health")
@@ -189,6 +250,28 @@ def list_rows(dataset_id):
         return error
 
     return jsonify(rows=rows)
+
+
+@app.get("/datasets/<int:dataset_id>/aggregate")
+def aggregate_dataset(dataset_id):
+    dataset, error = get_dataset(dataset_id)
+    if error:
+        return error
+
+    column = request.args.get("column")
+    operation = request.args.get("op")
+    if not column or not operation:
+        return jsonify(error="validation", message="column and op are required"), 400
+    if column not in dataset["columns"]:
+        return jsonify(error="validation", message="column does not exist"), 400
+    if operation not in AGGREGATE_OPERATIONS:
+        return jsonify(error="validation", message="op must be sum, avg, min, max or count"), 400
+
+    result, error = calculate_aggregate(dataset, column, operation)
+    if error:
+        return jsonify(error="validation", message=error), 400
+
+    return jsonify(column=column, op=operation, value=result)
 
 
 @app.get("/")

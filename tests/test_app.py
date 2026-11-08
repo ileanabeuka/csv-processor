@@ -307,6 +307,182 @@ def test_list_rows_returns_not_found_for_unknown_dataset(client):
     }
 
 
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [("sum", 33), ("avg", 11.0), ("min", 3.0), ("max", 20.0), ("count", 3)],
+)
+def test_aggregate_numeric_column(client, operation, expected):
+    created = client.post(
+        "/datasets",
+        json={"name": "numbers", "content": "value\n20\n3\n10"},
+    )
+    dataset_id = created.get_json()["id"]
+
+    response = client.get(
+        f"/datasets/{dataset_id}/aggregate?column=value&op={operation}"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "column": "value",
+        "op": operation,
+        "value": expected,
+    }
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [("min", "Ana"), ("max", "Mara")],
+)
+def test_aggregate_text_column(client, operation, expected):
+    created = client.post(
+        "/datasets",
+        json={"name": "names", "content": "name\nMara\nAna\nIon"},
+    )
+    dataset_id = created.get_json()["id"]
+
+    response = client.get(
+        f"/datasets/{dataset_id}/aggregate?column=name&op={operation}"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["value"] == expected
+
+
+def test_aggregate_count_ignores_empty_values(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "names", "content": "name\nAna\n\n   \nIon"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/aggregate?column=name&op=count"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["value"] == 2
+
+
+def test_aggregate_sum_on_text_quantity_column_returns_bad_request(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "products", "content": "cantitate\nmult\nputin"},
+    )
+    dataset_id = created.get_json()["id"]
+
+    response = client.get(
+        f"/datasets/{dataset_id}/aggregate?column=cantitate&op=sum"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation",
+        "message": "numeric operations require a numeric column",
+    }
+
+
+@pytest.mark.parametrize(
+    ("operation", "content", "expected"),
+    [
+        ("sum", "0.125", 0.13),
+        ("sum", "-0.125", -0.13),
+        ("avg", "0.125", 0.13),
+        ("avg", "0.1\n0.2\n0.275", 0.19),
+        ("min", "0.125\n0.2", 0.13),
+        ("max", "0.124\n0.125", 0.13),
+    ],
+)
+def test_aggregate_rounds_numeric_results_half_up(client, operation, content, expected):
+    created = client.post(
+        "/datasets",
+        json={"name": "numbers", "content": f"value\n{content}"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/aggregate?column=value&op={operation}"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["value"] == expected
+
+
+def test_aggregate_average_handles_large_finite_values(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "large numbers", "content": "value\n1e308\n1e308"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/aggregate?column=value&op=avg"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["value"] == 1e308
+
+
+@pytest.mark.parametrize(
+    ("query", "message"),
+    [
+        ("column=value", "column and op are required"),
+        ("op=sum", "column and op are required"),
+        ("column=missing&op=sum", "column does not exist"),
+        ("column=value&op=median", "op must be"),
+        ("column=name&op=sum", "numeric operations require a numeric column"),
+        ("column=name&op=avg", "numeric operations require a numeric column"),
+    ],
+)
+def test_aggregate_rejects_invalid_parameters(client, query, message):
+    client.post(
+        "/datasets",
+        json={"name": "data", "content": "value,name\n1,Ana"},
+    )
+
+    response = client.get(f"/datasets/1/aggregate?{query}")
+
+    assert response.status_code == 400
+    assert message in response.get_json()["message"]
+
+
+def test_aggregate_returns_validation_error_for_empty_column(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "empty", "content": "value\n"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/aggregate?column=value&op=sum"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["message"] == "cannot aggregate an empty column"
+
+
+def test_aggregate_returns_validation_error_when_sum_exceeds_json_number_range(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "large numbers", "content": "value\n1e308\n1e308"},
+    )
+
+    response = client.get(
+        f"/datasets/{created.get_json()['id']}/aggregate?column=value&op=sum"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["message"] == (
+        "aggregate result is outside the supported numeric range"
+    )
+
+
+def test_aggregate_returns_not_found_for_unknown_dataset(client):
+    response = client.get("/datasets/42/aggregate?column=value&op=sum")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "error": "not_found",
+        "message": "dataset does not exist",
+    }
+
+
 def test_home_returns_html(client):
     response = client.get("/")
     assert response.status_code == 200
