@@ -1,3 +1,5 @@
+[![CI](https://github.com/ileanabeuka/csv-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/ileanabeuka/csv-processor/actions/workflows/ci.yml)
+
 # Procesor CSV
 
 Proiect individual la disciplina Metode avansate de programare, anul universitar 2026-2027.
