@@ -274,6 +274,16 @@ def aggregate_dataset(dataset_id):
     return jsonify(column=column, op=operation, value=result)
 
 
+@app.delete("/datasets/<int:dataset_id>")
+def delete_dataset(dataset_id):
+    dataset, error = get_dataset(dataset_id)
+    if error:
+        return error
+
+    del store.datasets[dataset_id]
+    return "", 204
+
+
 @app.get("/")
 def home():
     commit = os.getenv("APP_COMMIT", "dev")

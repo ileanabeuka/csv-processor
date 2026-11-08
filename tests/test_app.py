@@ -483,6 +483,30 @@ def test_aggregate_returns_not_found_for_unknown_dataset(client):
     }
 
 
+def test_delete_dataset_removes_it(client):
+    created = client.post(
+        "/datasets",
+        json={"name": "temporary", "content": "value\n1"},
+    )
+    dataset_id = created.get_json()["id"]
+
+    response = client.delete(f"/datasets/{dataset_id}")
+
+    assert response.status_code == 204
+    assert dataset_id not in store.datasets
+    assert client.get(f"/datasets/{dataset_id}/rows").status_code == 404
+
+
+def test_delete_dataset_returns_not_found_for_unknown_id(client):
+    response = client.delete("/datasets/42")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "error": "not_found",
+        "message": "dataset does not exist",
+    }
+
+
 def test_home_returns_html(client):
     response = client.get("/")
     assert response.status_code == 200
