@@ -57,4 +57,8 @@ Raportul HTML se deschide din `coverage/htmlcov/index.html`.
 
 ## Decizii de implementare
 
-[Doua-trei decizii tehnice pe care le-ati luat si motivul fiecareia.]
+- Păstrarea valorilor extrase ca șiruri de caractere și deducerea dinamică a tipului coloanei. O coloană este numerică dacă toate valorile sale pot fi convertite în numere; în caz contrar, este tratată ca text. La sortare, tipul stabilește ordinea numerică sau alfabetică. Operațiile `sum` și `avg` sunt disponibile doar pentru coloane numerice. Păstrarea valorilor originale evită modificarea datelor la încărcare și permite tratarea coloanelor cu conținut mixt ca text.
+
+- Stocarea datelor în memoria procesului, într-un obiect `Store` cu identificatori numerici, fără utilizarea unei baze de date. Această soluție evită configurarea unui sistem de stocare extern și păstrează implementarea simplă; datele sunt disponibile cât timp rulează aplicația, dar se pierd la repornirea acesteia.
+
+- Utilizarea `Decimal` în calculele numerice, pentru a reduce erorile de reprezentare care pot apărea la calculele cu `float`.
