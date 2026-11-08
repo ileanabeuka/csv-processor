@@ -34,8 +34,10 @@ curl http://localhost:8080/version
 
 ```
 pip install -r requirements.txt pytest pytest-cov
-python -m pytest --cov=src --cov-fail-under=50 --cov-report=term-missing
+python -m pytest --cov=src --cov-fail-under=50 --cov-report=term-missing --cov-report=xml:coverage/coverage.xml --cov-report=html:coverage/htmlcov
 ```
+
+Raportul HTML se deschide din `coverage/htmlcov/index.html`.
 
 ## Rutele implementate
 
