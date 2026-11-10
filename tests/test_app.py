@@ -72,6 +72,45 @@ def test_create_dataset_accepts_header_with_trailing_newline(client):
     assert store.datasets[1]["rows"] == []
 
 
+def test_create_dataset_treats_quotes_as_literal_characters(client):
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "quoted",
+            "content": 'name,notes\n"Ana","likes apples"',
+        },
+    )
+
+    assert response.status_code == 201
+    assert store.datasets[1]["rows"] == [{"name": '"Ana"', "notes": '"likes apples"'}]
+
+
+def test_create_dataset_splits_commas_even_inside_quotes(client):
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "comma",
+            "content": 'name,first,second\nAna,"mere, pere"',
+        },
+    )
+
+    assert response.status_code == 201
+    assert store.datasets[1]["rows"] == [
+        {"name": "Ana", "first": '"mere', "second": ' pere"'}
+    ]
+
+
+def test_create_dataset_uses_comma_as_the_separator(client):
+    response = client.post(
+        "/datasets",
+        json={"name": "semicolon", "content": "name;age\nAna;20"},
+    )
+
+    assert response.status_code == 201
+    assert store.datasets[1]["columns"] == ["name;age"]
+    assert store.datasets[1]["rows"] == [{"name;age": "Ana;20"}]
+
+
 @pytest.mark.parametrize(
     ("content", "message"),
     [
