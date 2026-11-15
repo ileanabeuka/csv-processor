@@ -24,14 +24,21 @@ Python 3.13 cu Flask
 
 ### Imaginea publicată
 
-Versiunea publicată se descarcă folosind tagul `latest`:
+Imaginea corespunzătoare release-ului `0.1.0` poate fi descărcată folosind tagul `0.1.0`:
+
+```
+docker pull ghcr.io/ileanabeuka/csv-processor:0.1.0
+docker run -d -p 8080:8080 --name csv-processor ghcr.io/ileanabeuka/csv-processor:0.1.0
+```
+
+La publicarea unui tag de versiune, workflow-ul publică imaginea cu același tag. Versiunea aplicației este afișată de ruta `/version`.
+
+La fiecare push pe `main` care trece testele, workflow-ul actualizează tagul `latest`:
 
 ```
 docker pull ghcr.io/ileanabeuka/csv-processor:latest
 docker run -d -p 8080:8080 --name csv-processor ghcr.io/ileanabeuka/csv-processor:latest
 ```
-
-Tagul `latest` este actualizat la publicarea unei imagini noi; versiunea aplicației este afișată de ruta `/version`.
 
 ### Construire locală
 
